@@ -1,0 +1,1 @@
+Implementation of the paper "Comparative Attentional Networks for person reid".
