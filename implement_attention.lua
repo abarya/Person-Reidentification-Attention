@@ -16,7 +16,7 @@ function layer:__init()
     self.mask = torch.Tensor()
     self.core_output = torch.Tensor()
 end
-
+--[[ This funtion will initialize the first hidden and cell state respectively]]--
 function layer:_createInitState(batch_size)
   assert(batch_size ~= nil, 'batch size must be provided')
   -- construct the initial state for the LSTM
@@ -41,7 +41,7 @@ function layer:_createInitState(batch_size)
   end
   self.num_state = #self.init_state
   end
-
+-- This function creates the lstm core for different time steps..In our case num_steps=
 function layer:createClones()
     print('constructing clones inside the ques_level')
     self.cores = {self.core}
@@ -86,12 +86,14 @@ function layer:evaluate()
     if self.cores == nil then self:createClones() end -- create these lazily if needed
     for k,v in pairs(self.cores) do v:evaluate() end
 end
-
+-- I have doubt on how will we update this function
 function layer:updateOutput(input)
-  local ques = input[1]
-  local seq_len = input[2]
-  local img = input[3]
-  self.mask = input[4]
+  --local ques = input[1]
+  --local seq_len = input[2]
+  --local img = input[3]
+  --self.mask = input[4]
+  --cnn_output=cnn_model:forward(input)
+  --if we do the above step to compute the cnn output how'll the gradients flow backward through the cnn
 
 
   if self.cores == nil then self:createClones() end -- lazily create clones on first forward pass
