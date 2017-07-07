@@ -122,12 +122,16 @@ function CNN.cnn()
     cnn['img_mlp2_cell']=nnpackage.Linear(512,lstm_hiddenstate)(cnn['img_mlp1_cell']):annotate{
 	name='image Linear unit mlp12 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
+	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid'])
+	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax'])
 	outputs={}
 	table.insert(outputs,cnn['img_pool5'])
+	table.insert(outputs,cnn['soft_location_map'])
 	table.insert(outputs,cnn['img_mlp2_hid'])
 	table.insert(outputs,cnn['img_mlp2_cell'])
 	print(#outputs)
-	return{cnn,outputs}
+	final_module=nnpackage.gModule(cnn,outputs)
+	return final_module
 	--print(cnn,outputs)
 	--local model=nn.gModule(cnn,outputs)
 	--return model

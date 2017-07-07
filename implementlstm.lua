@@ -6,14 +6,15 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   dropout = dropout or 0.5
   -- there will be 2*n+1 inputs
   local inputs = {}
+ 
   table.insert(inputs, nn.Identity()():annotate{name='Identity'}) -- indices giving the sequence of symbols
   for L = 1,n do
     table.insert(inputs, nn.Identity()()) -- prev_c[L]
     table.insert(inputs, nn.Identity()()) -- prev_h[L]
   end
-
+  table.insert(inputs,nn.Identity()():annotate{name='conv_feat_map'})
   local x, input_size_L
-  local outputs = {}
+  local outputs = {inputs[4]}
   for L = 1,n do
     -- c,h from previos timesteps
     local prev_h = inputs[L*2+1]
@@ -48,15 +49,18 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
       })
     -- gated cells form the output
     local next_h = nn.CMulTable()({out_gate, nn.Tanh()(next_c)})
-    
+    local op     =nn.Linear(rnn_size,6*6)(next_h)
+    local softmax=nn.SoftMax()(op)
     table.insert(outputs, next_c)
     table.insert(outputs, next_h)
+    table.insert(outputs,softmax)
+
   end
   -- set up the decoder
-  local top_h = nn.Identity()(outputs[#outputs])
+  --local top_h = nn.Identity()(outputs[#outputs])
 
-  if dropout > 0 then top_h = nn.Dropout(dropout)(top_h):annotate{name='drop_final'} end
-  table.insert(outputs, top_h)
+  --if dropout > 0 then top_h = nn.Dropout(dropout)(top_h):annotate{name='drop_final'} end
+  --table.insert(outputs, top_h)
   print(inputs)
   return nn.gModule(inputs, outputs)
 end

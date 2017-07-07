@@ -97,7 +97,7 @@ else
   img_size = 224
 end
 
-lrs = torch.zeros(parameters:size(1)):fill(0.0001)
+lrs = torch.zeros(parameters:size(1)):fill(0.001)
 lrs[{{parameters:size(1) - (4096*871 + 871) + 1, parameters:size(1)}}] = 1
 
 optimState = {
@@ -157,10 +157,9 @@ function train()
   confusion:zero()
   print(c.blue'==>' ..' saving model')
   torch.save('saved_model/finetuned_'.. pretrained_model.. '.net',net)
-  epoch = epoch + 1
 end
 
-for i=1,20 do
+for i=1,40 do
   train()
 end  
 
