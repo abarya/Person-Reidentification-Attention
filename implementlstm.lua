@@ -1,27 +1,39 @@
 require 'nn'
 require 'nngraph'
 require 'utilities.lua'
+require 'opts.lua'
+cnn_op_size=opt.cnn_op_size
+cnn_op_depth=opt.cnn_op_depth
 local LSTM = {}
 function LSTM.lstm(input_size, rnn_size, n, dropout)
   dropout = dropout or 0.5
   -- there will be 2*n+1 inputs
   local inputs = {}
+  local outputs = {}
  
-  table.insert(inputs, nn.Identity()():annotate{name='Identity'}) -- indices giving the sequence of symbols
+  table.insert(inputs, nn.Identity()():annotate{name='Identity'}) -- soft_location_map
   for L = 1,n do
     table.insert(inputs, nn.Identity()()) -- prev_c[L]
     table.insert(inputs, nn.Identity()()) -- prev_h[L]
   end
   table.insert(inputs,nn.Identity()():annotate{name='conv_feat_map'})
+  --converting to 2D and 
+  reshaped=nn.Reshape(cnn_op_size,cnn_op_size)(inputs[1])
+  replicated=nn.Replicate(cnn_op_depth)(reshaped)
+  product=nn.CMulTable()({inputs[4],replicated})
+  avg_pool=nn.SpatialAveragePooling(cnn_op_size,cnn_op_size,cnn_op_size,cnn_op_size,0,0)
+  avg_pool.divide=false
+  input_lstm=avg_pool(product)
+  input_lstm=nn.View(-1,256)(input_lstm)
   local x, input_size_L
-  local outputs = {inputs[4]}
+
   for L = 1,n do
     -- c,h from previos timesteps
     local prev_h = inputs[L*2+1]
     local prev_c = inputs[L*2]
     -- the input to this layer
     if L == 1 then
-      x = inputs[1]
+      x = input_lstm--to be changed
       --x = nn.BatchNormalization(input_size)(x)
       input_size_L = input_size
     else 
@@ -51,10 +63,11 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
     local next_h = nn.CMulTable()({out_gate, nn.Tanh()(next_c)})
     local op     =nn.Linear(rnn_size,6*6)(next_h)
     local softmax=nn.SoftMax()(op)
-    table.insert(outputs, next_c)
-    table.insert(outputs, next_h)
+  
     table.insert(outputs,softmax)
-
+    table.insert(outputs,next_c)
+    table.insert(outputs,next_h)
+    table.insert(outputs,inputs[4])
   end
   -- set up the decoder
   --local top_h = nn.Identity()(outputs[#outputs])
@@ -64,22 +77,11 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   print(inputs)
   return nn.gModule(inputs, outputs)
 end
-model=LSTM.lstm(5,5,1,0)
+--model=LSTM.lstm(256,512,1,0)
 
 --print(model.forwardnodes[2].data.module)
 
-params,gradparams=model:getParameters()
---print(params)
-
--- for k, v in ipairs(model.forwardnodes) do
--- 	--print('hello')
---     --if v.data.annotations.name == 'name' then
---     print(v)
---     --end
--- end
-
--- model = localizeMemory(model);
--- graph.dot(model.fg, 'model','test')  
--- print(model)
+--params,gradparams=model:getParameters()
+--model:forward({torch.ones(1,36),torch.ones(1,512),torch.ones(1,512),torch.ones(1,256,6,6)})
 return LSTM
 

@@ -99,7 +99,7 @@ function CNN.cnn()
 	name='image AVGPOOL unit ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 	}	
 
- 	cnn['img_view']=nnpackage.View(256)(cnn["img_avg_pool"]):annotate{
+ 	cnn['img_view']=nnpackage.View(-1,256)(cnn["img_avg_pool"]):annotate{
 	name='image view unit ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 	}
 
@@ -125,10 +125,11 @@ function CNN.cnn()
 	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid'])
 	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax'])
 	outputs={}
-	table.insert(outputs,cnn['img_pool5'])
+	
 	table.insert(outputs,cnn['soft_location_map'])
-	table.insert(outputs,cnn['img_mlp2_hid'])
 	table.insert(outputs,cnn['img_mlp2_cell'])
+	table.insert(outputs,cnn['img_mlp2_hid'])
+	table.insert(outputs,cnn['img_pool5'])
 	print(#outputs)
 	final_module=nnpackage.gModule(cnn,outputs)
 	return final_module
