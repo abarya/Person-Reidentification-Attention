@@ -13,6 +13,9 @@ require 'attention.lua'
 
 -- print(attention_model:forward(torch.ones(1,3,227,227)))
 
-atten=nn.attention()
+atten=nn.attention() 
 
-print(atten:forward(torch.ones(1,3,227,227)))
+f=atten:forward(torch.ones(1,3,227,227))
+
+gradOutput=torch.randn(1,1536)
+atten:backward(input,gradOutput)
