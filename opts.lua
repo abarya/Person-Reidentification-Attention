@@ -14,7 +14,7 @@ opt=lapp[[
     --num_layers               (default 1)					mumber of layers of lstm
     --drop_out                 (default 0)
     --seq_length               (default 8)                  num of time steps for which attention model should run
-    --batchsize                (default 32)
+    --batchsize                (default 1)
     --cnn_op_size              (default 6)
     --cnn_op_depth             (default 256)
 ]]

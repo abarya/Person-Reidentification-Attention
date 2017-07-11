@@ -88,7 +88,7 @@ function CNN.cnn()
 				-- 	subnet['img' ..string.format("%d",num) .. '_' .. v[i].name].data.module:share(subnet1['img1_' .. v[i].name].data.module,'weight', 'bias', 'gradWeight', 'gradBias')
 				-- end
 				prev='img_' .. v[i].name
-				print(prev)
+				--print(prev)
 			end	
 		end	
 	end
@@ -130,7 +130,7 @@ function CNN.cnn()
 	table.insert(outputs,cnn['img_mlp2_cell'])
 	table.insert(outputs,cnn['img_mlp2_hid'])
 	table.insert(outputs,cnn['img_pool5'])
-	print(#outputs)
+	--print(#outputs)
 	final_module=nnpackage.gModule(cnn,outputs)
 	return final_module
 	--print(cnn,outputs)

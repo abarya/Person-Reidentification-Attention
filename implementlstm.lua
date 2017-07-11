@@ -18,9 +18,10 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   end
   table.insert(inputs,nn.Identity()():annotate{name='conv_feat_map'})
   --converting to 2D and 
+  conv_feat=inputs[4]
   reshaped=nn.Reshape(cnn_op_size,cnn_op_size)(inputs[1])
   replicated=nn.Replicate(cnn_op_depth)(reshaped)
-  product=nn.CMulTable()({inputs[4],replicated})
+  product=nn.CMulTable()({conv_feat,replicated})
   avg_pool=nn.SpatialAveragePooling(cnn_op_size,cnn_op_size,cnn_op_size,cnn_op_size,0,0)
   avg_pool.divide=false
   input_lstm=avg_pool(product)
@@ -33,8 +34,7 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
     local prev_c = inputs[L*2]
     -- the input to this layer
     if L == 1 then
-      x = input_lstm--to be changed
-      --x = nn.BatchNormalization(input_size)(x)
+      x = input_lstm
       input_size_L = input_size
     else 
       x = outputs[(L-1)*2] 
@@ -63,18 +63,14 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
     local next_h = nn.CMulTable()({out_gate, nn.Tanh()(next_c)})
     local op     =nn.Linear(rnn_size,6*6)(next_h)
     local softmax=nn.SoftMax()(op)
-  
+    local op=nn.Identity()(next_h)
     table.insert(outputs,softmax)
     table.insert(outputs,next_c)
     table.insert(outputs,next_h)
-    table.insert(outputs,inputs[4])
+    table.insert(outputs,conv_feat)
+    table.insert(outputs,op)
   end
-  -- set up the decoder
-  --local top_h = nn.Identity()(outputs[#outputs])
-
-  --if dropout > 0 then top_h = nn.Dropout(dropout)(top_h):annotate{name='drop_final'} end
-  --table.insert(outputs, top_h)
-  print(inputs)
+  -- print(inputs)
   return nn.gModule(inputs, outputs)
 end
 --model=LSTM.lstm(256,512,1,0)

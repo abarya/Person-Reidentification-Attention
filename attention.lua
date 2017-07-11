@@ -85,11 +85,12 @@ function layer:evaluate()
 end
 
 function layer:initialize_gradients()
-  local dl_dc8,dl_dconv8,dl_dloc8
+  local dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
   dl_dc8=torch.Tensor(self.batch_size,self.hidden_size):zero()
   dl_dconv8=torch.Tensor(self.batch_size,256,6,6):zero()
   dl_dloc8=torch.Tensor(self.batch_size,6*6):zero()
-  return dl_dc8,dl_dconv8,dl_dloc8
+  dl_dh8 =dl_dc8:clone()
+  return dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
 end
 
 function layer:updateOutput(input)
@@ -103,10 +104,10 @@ function layer:updateOutput(input)
   self.output_lstm={}
   for t=1,self.seq_length do
   	  local out=self.lstm_units[t]:forward(self.fore_inputs_and_states[t])
-  	  table.insert(self.fore_inputs_and_states,out)
-  	  location_map,cell_st,hid_st,self.conv_feat=unpack(out)
+      location_map,cell_st,hid_st,self.conv_feat,out_lstm=unpack(out)
+  	  table.insert(self.fore_inputs_and_states,{location_map,cell_st,hid_st,self.conv_feat})
       if(t==2 or t==4 or t==8) then
-  	     table.insert(self.output_lstm,hid_st)
+  	     table.insert(self.output_lstm,out_lstm)
       end   
   end
   print(self.output_lstm)
@@ -116,44 +117,25 @@ end
 
 function layer:updateGradInput(input, gradOutput)
   --dl_dh2 means derivative of loss w.r.t. hidden state-2
-  dl_dh2,dl_dh4,dl_dh8=unpack(self.concat_norm:backward(self.output_lstm,gradOutput))
+  dl_dop2,dl_dop4,dl_dop8=unpack(self.concat_norm:backward(self.output_lstm,gradOutput))
   --computing gradients for lstm
 
-  dl_dc8,dl_dconv8,dl_dloc8=self:initialize_gradients() ---initializing grad_loss w.r.t. output of last time step 
-  gradOutput_lstm={[self.seq_length]={dl_dloc8,dl_dc8,dl_dh8,dl_dconv8}
-  for t=self.seq_length,8,-1 do
-    print(self.lstm_units[t]:backward(self.fore_inputs_and_states[t],gradOutput_lstm[t]))
-  end  
-
-
-
-  -- local batch_size = ques:size(1)
-
-  -- local d_core_output, d_imgfeat, dummy = unpack(self.atten:backward({self.core_output, img, self.mask}, gradOutput))
-
-  -- -- go backwards and lets compute gradients
-  -- local d_core_state = {[self.tmax] = self.init_state} -- initial dstates
-  -- local d_embed_core = d_embed_core or self.core_output:new()
-  -- d_embed_core:resize(batch_size, self.seq_length, self.rnn_size):zero()
-
-  -- for t=self.tmax,1,-1 do
-  --   -- concat state gradients and output vector gradients at time step t
-  --   local dout = {}
-  --   for k=1,#d_core_state[t] do table.insert(dout, d_core_state[t][k]) end
-  --   table.insert(dout, d_core_output:narrow(2,t,1):contiguous():view(-1, self.hidden_size))
-  --   local dinputs = self.cores[t]:backward(self.fore_inputs[t], dout)
-
-  --   if t > self.tmin then
-  --     for k=1,self.num_state+1 do
-  --       dinputs[k]:maskedFill(self.mask:narrow(2,t,1):contiguous():view(batch_size,1):expandAs(dinputs[k]), 0)
-  --     end
-  --   end
-  --   d_core_state[t-1] = {} -- copy over rest to state grad
-  --   for k=2,self.num_state+1 do table.insert(d_core_state[t-1], dinputs[k]) end
-  --   d_embed_core:narrow(2,t,1):copy(dinputs[1])
-  -- end
-  -- self.gradInput = {d_embed_core, d_imgfeat}
-  -- return self.gradInput
+  dl_dc8,dl_dconv8,dl_dloc8,dl_dh8=self:initialize_gradients() ---initializing grad_loss w.r.t. output of last time step 
+  self.gradOutput_lstm={[self.seq_length]={dl_dloc8,dl_dc8,dl_dh8,dl_dconv8,dl_dop8}}
+  for t=self.seq_length,1,-1 do
+    if (t-1==2) then
+      dl_dop=dl_dop2
+    elseif (t-1==4) then
+      dl_dop=dl_dop4
+    else
+      dl_dop=dl_dop8:clone():zero()  
+    end 
+    dl_dloc,dl_dc,dl_dh,dl_dconv=unpack(self.lstm_units[t]:backward(self.fore_inputs_and_states[t],self.gradOutput_lstm[t]))
+    self.gradOutput_lstm[t-1]={dl_dloc,dl_dc,dl_dh,dl_dconv,dl_dop}
+  end
+  dl_dloc,dl_dc,dl_dh,dl_dconv=unpack(self.gradOutput_lstm[0])
+  self.gradInput=self.cnn:backward(input,{dl_dloc,dl_dc,dl_dh,dl_dconv})
+  return self.gradInput
 end
 
 
