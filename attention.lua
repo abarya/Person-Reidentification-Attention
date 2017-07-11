@@ -93,7 +93,6 @@ function layer:initialize_gradients()
 end
 
 function layer:updateOutput(input)
-
   location_map,cell_st,hid_st,self.conv_feat=unpack(self.cnn:forward(input))
   print(self.cnn:forward(input))
   if self.lstm_units == nil then self:create_clones() end -- lazily create clones on first forward pass
