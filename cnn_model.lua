@@ -88,7 +88,7 @@ function CNN.cnn()
 				-- 	subnet['img' ..string.format("%d",num) .. '_' .. v[i].name].data.module:share(subnet1['img1_' .. v[i].name].data.module,'weight', 'bias', 'gradWeight', 'gradBias')
 				-- end
 				prev='img_' .. v[i].name
-				print(prev)
+				--print(prev)
 			end	
 		end	
 	end
@@ -99,7 +99,7 @@ function CNN.cnn()
 	name='image AVGPOOL unit ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 	}	
 
- 	cnn['img_view']=nnpackage.View(256)(cnn["img_avg_pool"]):annotate{
+ 	cnn['img_view']=nnpackage.View(-1,256)(cnn["img_avg_pool"]):annotate{
 	name='image view unit ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 	}
 
@@ -122,12 +122,17 @@ function CNN.cnn()
     cnn['img_mlp2_cell']=nnpackage.Linear(512,lstm_hiddenstate)(cnn['img_mlp1_cell']):annotate{
 	name='image Linear unit mlp12 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
+	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid'])
+	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax'])
 	outputs={}
-	table.insert(outputs,cnn['img_pool5'])
-	table.insert(outputs,cnn['img_mlp2_hid'])
+	
+	table.insert(outputs,cnn['soft_location_map'])
 	table.insert(outputs,cnn['img_mlp2_cell'])
-	print(#outputs)
-	return{cnn,outputs}
+	table.insert(outputs,cnn['img_mlp2_hid'])
+	table.insert(outputs,cnn['img_pool5'])
+	--print(#outputs)
+	final_module=nnpackage.gModule(cnn,outputs)
+	return final_module
 	--print(cnn,outputs)
 	--local model=nn.gModule(cnn,outputs)
 	--return model
