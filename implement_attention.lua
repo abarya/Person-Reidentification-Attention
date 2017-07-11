@@ -12,10 +12,18 @@ function layer:__init()
     self.seq_length =  opt.seq_length
     self.core = LSTM.lstm(self.rnn_size, self.rnn_size, self.num_layers, dropout)
     self.cnn  = CNN.cnn()
-    self:_createInitState(1)
+    --self:_createInitState(1)
+    self:_join_cnn_and_lstm()
     self.mask = torch.Tensor()
     self.core_output = torch.Tensor()
 end
+
+function layer:_join_cnn_and_lstm()
+    if self.cores == nil then self:createClones() end -- create these lazily if needed
+    lstm={}
+    for i=1,self.seq_length do
+        table.insert(lstm.nn.Identity()(self.cnn['img_pool5']))
+
 
 function layer:_createInitState(batch_size)
   assert(batch_size ~= nil, 'batch size must be provided')
