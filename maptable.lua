@@ -3,13 +3,14 @@ require 'nngraph'
 
 local MapTable, parent = torch.class('nn.maptable', 'nn.Container')
 
-function MapTable:__init(module, shared)
+function MapTable:__init(module, shared,num_inputs)
    parent.__init(self)
    self.shared = (shared == nil) and true or shared
    self.sharedparams = {'weight', 'bias', 'gradWeight', 'gradBias'}
    self.output = {}
    self.gradInput = {}
    self:add(module)
+   self:_extend(num_inputs)
 end
 
 function MapTable:_extend(n)
@@ -48,7 +49,7 @@ function MapTable:_extend(n)
 end
 
 function MapTable:resize(n)
-   self:_extend(n)
+   -- self:_extend(n)
    for i = n + 1, #self.modules do
       -- It's not clear why this clearState call is necessary, but it fixes
       -- https://github.com/torch/nn/issues/1141 .
@@ -66,7 +67,7 @@ end
 
 function MapTable:updateOutput(input)
    self.output = {}
-   self:_extend(#input)
+   -- self:_extend(#input)
    for i = 1, #input do
       self.output[i] = self:rethrowErrors(self.modules[i], i, 'updateOutput', input[i])
    end
@@ -75,7 +76,7 @@ end
 
 function MapTable:updateGradInput(input, gradOutput)
    self.gradInput = {}
-   self:_extend(#input)
+   -- self:_extend(#input)
    for i = 1, #input do
       self.gradInput[i] = self:rethrowErrors(self.modules[i], i, 'updateGradInput', input[i], gradOutput[i])
    end
@@ -84,7 +85,7 @@ end
 
 function MapTable:accGradParameters(input, gradOutput, scale)
    scale = scale or 1
-   self:_extend(#input)
+   -- self:_extend(#input)
    for i = 1, #input do
       self:rethrowErrors(self.modules[i], i, 'accGradParameters', input[i], gradOutput[i], scale)
    end
@@ -92,7 +93,7 @@ end
 
 function MapTable:accUpdateGradParameters(input, gradOutput, lr)
    lr = lr or 1
-   self:_extend(#input)
+   -- self:_extend(#input)
    for i = 1, #input do
       self:rethrowErrors(self.modules[i], i, 'accUpdateGradParameters', input[i], gradOutput[i], lr)
    end
