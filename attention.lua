@@ -5,7 +5,7 @@ require 'opts.lua'
 require 'utilities.lua'
 require 'nngraph'
 require 'modified_lstm'
-local CNN=require 'cnn_model.lua'
+--local CNN=require 'cnn_model.lua'
 
 modified_lstm=nn.modified_lstm()
 
@@ -15,7 +15,7 @@ function layer:__init()
 	parent.__init(self)
 	self.seq_length=opt.seq_length
 	self.lstm=nn.modified_lstm().modified_lstm
-	self.cnn=CNN.cnn()
+	--self.cnn=CNN.cnn()
 	--self.lstm_output = torch.Tensor()
 	self.batch_size=opt.batch_size
 	self.seq_length=8
@@ -59,17 +59,13 @@ end
 
 function layer:parameters()
     -- we only have two internal modules, return their params
-    local p1,g1 = self.cnn:parameters()
-    local p3,g3 = self.lstm:parameters()
+    local p,g = self.lstm:parameters()
 
     local params = {}
-    for k,v in pairs(p1) do table.insert(params, v) end
-    for k,v in pairs(p3) do table.insert(params, v) end
+    for k,v in pairs(p) do table.insert(params, v) end
 
     local grad_params = {}
-    for k,v in pairs(g1) do table.insert(grad_params, v) end
-    for k,v in pairs(g3) do table.insert(grad_params, v) end
-
+    for k,v in pairs(g) do table.insert(grad_params, v) end
     return params, grad_params
 end
 
@@ -94,8 +90,7 @@ function layer:initialize_gradients()
 end
 
 function layer:updateOutput(input)
-  location_map,cell_st,hid_st,self.conv_feat=unpack(self.cnn:forward(input))
-  print(self.cnn:forward(input))
+  location_map,cell_st,hid_st,self.conv_feat=unpack(input)
   if self.lstm_units == nil then self:create_clones() end -- lazily create clones on first forward pass
   
   self.fore_inputs_and_states = {[1]={location_map,cell_st,hid_st,self.conv_feat}}
@@ -132,9 +127,9 @@ function layer:updateGradInput(input, gradOutput)
     end 
     dl_dloc,dl_dc,dl_dh,dl_dconv=unpack(self.lstm_units[t]:backward(self.fore_inputs_and_states[t],self.gradOutput_lstm[t]))
     self.gradOutput_lstm[t-1]={dl_dloc,dl_dc,dl_dh,dl_dconv,dl_dop}
+    --
   end
-  dl_dloc,dl_dc,dl_dh,dl_dconv=unpack(self.gradOutput_lstm[0])
-  self.gradInput=self.cnn:backward(input,{dl_dloc,dl_dc,dl_dh,dl_dconv})
+  self.gradInput=self.gradOutput_lstm[0]
   return self.gradInput
 end
 

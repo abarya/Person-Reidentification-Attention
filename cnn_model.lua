@@ -9,6 +9,7 @@ dofile 'opts.lua'
 require 'utilities.lua'
 require 'rnn'
 logger = require 'log'
+require 'attention.lua'
 logger.outfile = opt.logFile
 print(opt)
 --define fillcolors for different layers
@@ -46,7 +47,7 @@ function CNN.cnn()
 		pretrained_model=loadcaffe.load('deploy.prototxt','bvlc_alexnet.caffemodel','cudnn')
     end	
     cnn={}
-    table.insert(cnn,nn.Identity()())
+    table.insert(cnn,nn.Identity()():annotate{name='input'})
     print('creating cnn model')
   
 	for k,v in pairs(pretrained_model) do
@@ -57,27 +58,27 @@ function CNN.cnn()
 				print(v[i].name)
 				if(name=="conv" and i==1) then
 					cnn['img_' .. v[i].name]=nnpackage.SpatialConvolution(v[i].nInputPlane, v[i].nOutputPlane, v[i].kW, v[i].kH, v[i].dW, v[i].dH, v[i].padW, v[i].padH)(cnn[1]):annotate{
-					name='image- convolution unit  ' .. v[i].name,
+					name='convolution unit  ' .. v[i].name,
 					graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_CONV}
 				    }
 				elseif(name=="conv" and i>1) then
 					cnn['img_' .. v[i].name]=nnpackage.SpatialConvolution(v[i].nInputPlane, v[i].nOutputPlane, v[i].kW, v[i].kH, v[i].dW, v[i].dH, v[i].padW, v[i].padH)(cnn[prev]):annotate{
-					name='image- convolution unit  ' .. v[i].name,
+					name='convolution unit  ' .. v[i].name,
 					graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_CONV}
 					}
 				elseif(name=="relu") then
 					cnn['img_' .. v[i].name]=nnpackage.ReLU()(cnn[prev]):annotate{
-					name='image- ReLU unit ' .. v[i].name,
+					name='ReLU unit ' .. v[i].name,
 					graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_RELU}
 					}
 				elseif(name=="pool") then
 					cnn['img_' .. v[i].name]=nnpackage.SpatialMaxPooling(v[i].kW, v[i].kH, v[i].dW, v[i].dH, v[i].padW, v[i].padH)(cnn[prev]):annotate{
-					name='image- MAXPOOL unit ' .. v[i].name,
+					name='MAXPOOL unit ' .. v[i].name,
 					graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 					}	
 				elseif(name=="norm") then
 					cnn['img_' .. v[i].name]=nnpackage.SpatialCrossMapLRN(v[i].size,v[i].alpha,v[i].beta,v[i].k)(cnn[prev]):annotate{
-					name='image- localResponseNormalization unit ' .. v[i].name,
+					name='localResponseNormalization unit ' .. v[i].name,
 					graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_MAXPOOL}
 					}
 				elseif(name=="torc") then	
@@ -106,32 +107,32 @@ function CNN.cnn()
 	-- for initializing hidden states
 
     cnn['img_mlp1_hid']=nnpackage.Linear(256,512)(cnn["img_view"]):annotate{
-	name='image Linear unit mlp1_hid ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
+	name='Linear unit mlp1_hid ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
 
     cnn['img_mlp2_hid']=nnpackage.Linear(512,lstm_hiddenstate)(cnn['img_mlp1_hid']):annotate{
-	name='image Linear unit mlp12_hid ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
+	name='Linear unit mlp12_hid ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
 
 	-- for initializing cell states
 
     cnn['img_mlp1_cell']=nnpackage.Linear(256,512)(cnn["img_view"]):annotate{
-	name='image Linear unit mlp1 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
+	name='Linear unit mlp1 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
 
     cnn['img_mlp2_cell']=nnpackage.Linear(512,lstm_hiddenstate)(cnn['img_mlp1_cell']):annotate{
-	name='image Linear unit mlp12 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
+	name='Linear unit mlp12 ',graphAttributes = {color = TEXTCOLOR, style = NODESTYLE, fillcolor = COLOR_LINEAR}
 	}
-	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid'])
-	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax'])
+	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid']):annotate{name='Linearhid to location_map'}
+	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax']):annotate{name='softmax_location_map'}
 	outputs={}
-	
-	table.insert(outputs,cnn['soft_location_map'])
-	table.insert(outputs,cnn['img_mlp2_cell'])
-	table.insert(outputs,cnn['img_mlp2_hid'])
-	table.insert(outputs,cnn['img_pool5'])
+	cnn['attention']=nn.attention()({cnn['soft_location_map'],cnn['img_mlp2_cell'],cnn['img_mlp2_hid'],cnn['img_pool5']}):annotate{name='attention_module'}
+	-- table.insert(outputs,cnn['soft_location_map'])
+	-- table.insert(outputs,cnn['img_mlp2_cell'])
+	-- table.insert(outputs,cnn['img_mlp2_hid'])
+	-- table.insert(outputs,cnn['img_pool5'])
 	--print(#outputs)
-	final_module=nnpackage.gModule(cnn,outputs)
+	final_module=nnpackage.gModule(cnn,{cnn['attention']})
 	return final_module
 	--print(cnn,outputs)
 	--local model=nn.gModule(cnn,outputs)
@@ -183,13 +184,12 @@ end
 -- 	return model  
 -- end		
 
---model=CNN.cnn()
-return CNN
+-- model=CNN.cnn()
 -- model = localizeMemory(model);
 -- graph.dot(model.fg, 'model','test') 
 
 -- output=model:forward(torch.randn(1,3,227,227))
 -- print(output[2])
 
-
+return CNN
 	

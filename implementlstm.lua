@@ -11,20 +11,20 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   local inputs = {}
   local outputs = {}
  
-  table.insert(inputs, nn.Identity()():annotate{name='Identity'}) -- soft_location_map
+  table.insert(inputs, nn.Identity()():annotate{name='atten_location_map'}) -- soft_location_map
   for L = 1,n do
-    table.insert(inputs, nn.Identity()()) -- prev_c[L]
-    table.insert(inputs, nn.Identity()()) -- prev_h[L]
+    table.insert(inputs, nn.Identity()():annotate{name='init_cell'}) -- prev_c[L]
+    table.insert(inputs, nn.Identity()():annotate{name='init_hid'}) -- prev_h[L]
   end
   table.insert(inputs,nn.Identity()():annotate{name='conv_feat_map'})
   --converting to 2D and 
   conv_feat=inputs[4]
-  reshaped=nn.Reshape(cnn_op_size,cnn_op_size)(inputs[1])
-  replicated=nn.Replicate(cnn_op_depth)(reshaped)
-  product=nn.CMulTable()({conv_feat,replicated})
+  reshaped=nn.Reshape(cnn_op_size,cnn_op_size)(inputs[1]):annotate{name='mask'}
+  replicated=nn.Replicate(cnn_op_depth)(reshaped):annotate{name='mask'}
+  product=nn.CMulTable()({conv_feat,replicated}):annotate{name='mask'}
   avg_pool=nn.SpatialAveragePooling(cnn_op_size,cnn_op_size,cnn_op_size,cnn_op_size,0,0)
   avg_pool.divide=false
-  input_lstm=avg_pool(product)
+  input_lstm=avg_pool(product):annotate{name='mask_avg'}
   input_lstm=nn.View(-1,256)(input_lstm)
   local x, input_size_L
 
@@ -42,8 +42,8 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
       input_size_L = rnn_size
     end
     -- evaluate the input sums at once for efficiency
-    local i2h = nn.Linear(input_size_L, 4 * rnn_size)(x):annotate{name='i2h_'..L}
-    local h2h = nn.Linear(rnn_size, 4 * rnn_size)(prev_h):annotate{name='h2h_'..L}
+    local i2h = nn.Linear(input_size_L, 4 * rnn_size)(x):annotate{name='Linear i2h_'..L}
+    local h2h = nn.Linear(rnn_size, 4 * rnn_size)(prev_h):annotate{name='Linear h2h_'..L}
     local all_input_sums = nn.CAddTable()({i2h, h2h})
 
     local reshaped = nn.Reshape(4, rnn_size)(all_input_sums)
@@ -58,11 +58,11 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
     local next_c           = nn.CAddTable()({
         nn.CMulTable()({forget_gate, prev_c}),
         nn.CMulTable()({in_gate,     in_transform})
-      })
+      }):annotate{name='next_c'}
     -- gated cells form the output
-    local next_h = nn.CMulTable()({out_gate, nn.Tanh()(next_c)})
-    local op     =nn.Linear(rnn_size,6*6)(next_h)
-    local softmax=nn.SoftMax()(op)
+    local next_h = nn.CMulTable()({out_gate, nn.Tanh()(next_c)}):annotate{name='next_h'}
+    local op     =nn.Linear(rnn_size,6*6)(next_h):annotate{name='Linear h2loc'}
+    local softmax=nn.SoftMax()(op):annotate{name='loc_map'}
     local op=nn.Identity()(next_h)
     table.insert(outputs,softmax)
     table.insert(outputs,next_c)
@@ -73,8 +73,9 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   -- print(inputs)
   return nn.gModule(inputs, outputs)
 end
---model=LSTM.lstm(256,512,1,0)
-
+-- model=LSTM.lstm(256,512,1,0)
+-- model = localizeMemory(model);
+-- graph.dot(model.fg, 'model','lstm') 
 --print(model.forwardnodes[2].data.module)
 
 --params,gradparams=model:getParameters()
