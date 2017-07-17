@@ -25,6 +25,13 @@ TEXTCOLOR = 'black';
 NODESTYLE = 'filled';
 lstm_hiddenstate=512
 lstm_inputsize  =256
+
+-- default options to verify cnn_model standalone
+if(opt == nil) then
+	opt = {}
+	opt.cnn_model = "alexnet"
+end
+
 if opt.cnn_model=="alexnet" then
 	input_size=227
 else
