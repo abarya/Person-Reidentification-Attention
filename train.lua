@@ -18,8 +18,8 @@ opt = lapp[[
     --weightDecay        (default 0.0005)           weightDecay
     --learningRateDecay  (default 1e-4)
     -m,--momentum        (default 0.9)              momentum
-	-m,--model           (default alexnet)          model name
-	-t,--type            (default cuda)            float/cuda
+	-m,--model             (default alexnet)          model name
+	-t,--type              (default cuda)            float/cuda
 ]]
 --opt.model='alexnet'
 print(opt.model,opt.type,opt.batchSize)

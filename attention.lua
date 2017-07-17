@@ -4,26 +4,27 @@ require 'nn'
 require 'opts.lua'
 require 'utilities.lua'
 require 'nngraph'
-require 'modified_lstm'
+local LSTM = require 'implementlstm.lua'
 --local CNN=require 'cnn_model.lua'
-
-modified_lstm=nn.modified_lstm()
 
 local layer,parent=torch.class('nn.attention','nn.Module')
 
 function layer:__init()
 	parent.__init(self)
+  self.batch_size=opt.batchsize
+  self.num_classes=871
 	self.seq_length=opt.seq_length
-	self.lstm=nn.modified_lstm().modified_lstm
-	--self.cnn=CNN.cnn()
-	--self.lstm_output = torch.Tensor()
-	self.batch_size=opt.batch_size
-	self.seq_length=8
+  local dropout = opt.drop_out
+  self.rnn_size = opt.hidden_size
+  self.num_layers = opt.num_layers  
+  self.cnn_op_size=6
+  self.cnn_op_depth=256
+  self.input_size=256---attention map
 	self.lstm_output_size=36 ------size of attention map
   self.num_op_hid=3----the no. of hidden states that are concatenated for obtaining output
   self.hidden_size=opt.hidden_size
+  self.lstm=LSTM.lstm(self.input_size, self.rnn_size, self.num_layers, dropout)
   self.concat_norm=self:create_concat_norm(self.num_op_hid,self.hidden_size)
-  self.batch_size=opt.batchsize
 end
 
 function layer:create_concat_norm(num_hidden,hidden_size)
@@ -32,8 +33,9 @@ function layer:create_concat_norm(num_hidden,hidden_size)
   norm=nn.CMulTable()({i1,inputs[1]})
   sum=nn.Sum(2)(norm)
   repli=nn.Replicate(num_hidden*hidden_size,2)(sum)
-  out=nn.CDivTable()({inputs[1],repli})
-  op={out}
+  out1=nn.CDivTable()({inputs[1],repli})
+  prediction=nn.Linear(1536,self.num_classes)(out1)
+  op={out1,prediction}
   return nn.gModule(inputs,op)
 end  
 
@@ -54,21 +56,32 @@ function layer:shareClones()
 end
 
 function layer:getModulesList()
-    return {self.cnn,self.lstm}
+    return {self.lstm}
 end
 
 function layer:parameters()
     -- we only have two internal modules, return their params
     local p,g = self.lstm:parameters()
-
     local params = {}
-    for k,v in pairs(p) do table.insert(params, v) end
-
+    for k,v in pairs(p) do 
+      table.insert(params, v)
+    end
     local grad_params = {}
     for k,v in pairs(g) do table.insert(grad_params, v) end
     return params, grad_params
 end
 
+function layer:getParameters()
+    local p,g = self.lstm:parameters()
+    local p1,g1=self.concat_norm:getParameters()
+    local params = {}
+    for k,v in pairs(p) do table.insert(params, v)end
+    for k,v in pairs(p1) do table.insert(params, v)end
+    local grad_params = {}
+    for k,v in pairs(g) do table.insert(grad_params, v) end
+    for k,v in pairs(g1) do table.insert(grad_params, v) end
+    return params, grad_params
+end  
 
 function layer:training()
     if self.lstm_units == nil then self:createClones() end -- create these lazily if needed
@@ -82,10 +95,10 @@ end
 
 function layer:initialize_gradients()
   local dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
-  dl_dc8=torch.Tensor(self.batch_size,self.hidden_size):zero()
-  dl_dconv8=torch.Tensor(self.batch_size,256,6,6):zero()
-  dl_dloc8=torch.Tensor(self.batch_size,6*6):zero()
-  dl_dh8 =dl_dc8:clone()
+  dl_dc8=torch.Tensor(self.batch_size,self.hidden_size):zero():cuda()
+  dl_dconv8=torch.Tensor(self.batch_size,256,6,6):zero():cuda()
+  dl_dloc8=torch.Tensor(self.batch_size,6*6):zero():cuda()
+  dl_dh8 =dl_dc8:clone():cuda()
   return dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
 end
 
@@ -105,7 +118,7 @@ function layer:updateOutput(input)
   	     table.insert(self.output_lstm,out_lstm)
       end   
   end
-  print(self.output_lstm)
+  -- print(self.output_lstm)
   local output=self.concat_norm:forward(self.output_lstm)
   return output
 end

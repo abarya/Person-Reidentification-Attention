@@ -73,7 +73,9 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   -- print(inputs)
   return nn.gModule(inputs, outputs)
 end
--- model=LSTM.lstm(256,512,1,0)
+model=LSTM.lstm(256,512,1,0)
+p,g=model:getParameters()
+--print(p:size(1))
 -- model = localizeMemory(model);
 -- graph.dot(model.fg, 'model','lstm') 
 --print(model.forwardnodes[2].data.module)

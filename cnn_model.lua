@@ -9,7 +9,6 @@ dofile 'opts.lua'
 require 'utilities.lua'
 require 'rnn'
 logger = require 'log'
-require 'attention.lua'
 logger.outfile = opt.logFile
 print(opt)
 --define fillcolors for different layers
@@ -133,13 +132,13 @@ function CNN.cnn()
 	cnn['hid_to_softmax']=nnpackage.Linear(512,6*6)(cnn['img_mlp2_hid']):annotate{name='Linearhid to location_map'}
 	cnn['soft_location_map']=nnpackage.SoftMax()(cnn['hid_to_softmax']):annotate{name='softmax_location_map'}
 	outputs={}
-	cnn['attention']=nn.attention()({cnn['soft_location_map'],cnn['img_mlp2_cell'],cnn['img_mlp2_hid'],cnn['img_pool5']}):annotate{name='attention_module'}
+	--cnn['attention']=nn.attention()({cnn['soft_location_map'],cnn['img_mlp2_cell'],cnn['img_mlp2_hid'],cnn['img_pool5']}):annotate{name='attention_module'}
 	-- table.insert(outputs,cnn['soft_location_map'])
 	-- table.insert(outputs,cnn['img_mlp2_cell'])
 	-- table.insert(outputs,cnn['img_mlp2_hid'])
 	-- table.insert(outputs,cnn['img_pool5'])
 	--print(#outputs)
-	final_module=nnpackage.gModule(cnn,{cnn['attention']})
+	final_module=nnpackage.gModule(cnn,{cnn['soft_location_map'],cnn['img_mlp2_cell'],cnn['img_mlp2_hid'],cnn['img_pool5']})
 	return final_module
 	--print(cnn,outputs)
 	--local model=nn.gModule(cnn,outputs)

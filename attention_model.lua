@@ -1,5 +1,5 @@
-local CNN=require 'cnn_model.lua'
-require 'maptable.lua'
+--local CNN=require 'cnn_model.lua'
+local model=require 'model.lua'
 require 'optim'
 require 'torch'
 require 'cunn'
@@ -9,16 +9,13 @@ optimState = {
   momentum =0.2,
   learningRateDecay = 0.1,
 }
-m=CNN.cnn()
-model=nn.maptable(m,true,3)
-print("hello")
 parameters,gradParameters=model:getParameters()
 print(parameters[{{1,10}}],parameters:size())
 input={torch.randn(1,3,227,227),torch.randn(1,3,227,227),torch.randn(1,3,227,227)}
-
--- print(model.modules[1])
--- print(model.modules[2])
--- print(model.modules[3])
+--print(torch.cat(torch.cat(parameters[{{1,10}}],parameters[{{6149576+1,6149576+10}}],2),parameters[{{12299152+1,12299152+10}}],2))
+print("before update")
+model:forward(input)
+os.exit()
 for i=1,10 do
   local feval = function(x)
     gradParameters:zero()
@@ -32,8 +29,10 @@ for i=1,10 do
     return f,gradParameters
   end
   optim.sgd(feval, parameters, optimState)
-  --model:clearState()
+  print(torch.cat(torch.cat(parameters[{{1,10}}],parameters[{{6149576+1,6149576+10}}],2),parameters[{{12299152+1,12299152+10}}],2))
+  model:clearState()
   print('After update')
   parameters,gradParameters=model:getParameters()
-  print(parameters[{{1,10}}],parameters:size())
-end  
+  print(model)
+  os.exit()
+  end  
