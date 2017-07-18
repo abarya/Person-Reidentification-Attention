@@ -17,6 +17,8 @@ opt=lapp[[
     --batchsize                (default 1)
     --cnn_op_size              (default 6)
     --cnn_op_depth             (default 256)
+    --datapath                 (default 'datasets/finetune_dataset/cuhk01_test100/train')
+    --nGPUs                    (default 2)
 ]]
 rootLogFolder = paths.concat(lfs.currentdir() .. '/../', 'scratch', opt.dataset) 
 opt.save = paths.concat(rootLogFolder, os.date("%d-%b-%Y-%X-") .. 'personreid_' .. opt.datasetname)

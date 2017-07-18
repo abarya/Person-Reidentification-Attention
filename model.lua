@@ -154,20 +154,5 @@ m1=nn.gModule({model_atten['img_1conv1']},--,model_atten['img_2conv1']},--,model
 {model_atten['img_1attention']})
  --model_atten['img_2mlp2_hid'],model_atten['img_2mlp2_cell'],model_atten['img_2loc_map'],model_atten['img_2pool5']})
  --model_atten['img_3mlp2_hid'],model_atten['img_3mlp2_cell'],model_atten['img_3loc_map'],model_atten['img_3pool5']})
-m1=m1:cuda()
-x=torch.randn(1,3,227,227):cuda()
-do_=torch.randn(1,1536):cuda()
-d_=torch.randn(1,871):cuda()
-f=m1:forward(x)
-
-m1:backward(x,{do_,d_})
-p,g=m1:getParameters()
-print(g[{{1,10}}])
-
-m1:zeroGradParameters()
 seq=nn.Sequencer(m1)
-input={x,x,x}
-print(seq:forward(input))
-seq:backward(input,{{do_,d_},{do_,d_},{do_,d_}})
-p,g=seq:getParameters()
-print(p:size())
+return seq
