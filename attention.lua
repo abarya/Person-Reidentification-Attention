@@ -93,11 +93,11 @@ function layer:evaluate()
     for k,v in pairs(self.lstm_units) do v:evaluate() end
 end
 
-function layer:initialize_gradients()
+function layer:initialize_gradients(batchsize)
   local dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
-  dl_dc8=torch.Tensor(self.batch_size,self.hidden_size):zero():cuda()
-  dl_dconv8=torch.Tensor(self.batch_size,256,6,6):zero():cuda()
-  dl_dloc8=torch.Tensor(self.batch_size,6*6):zero():cuda()
+  dl_dc8=torch.Tensor(batchsize,self.hidden_size):zero():cuda()
+  dl_dconv8=torch.Tensor(batchsize,256,6,6):zero():cuda()
+  dl_dloc8=torch.Tensor(batchsize,6*6):zero():cuda()
   dl_dh8 =dl_dc8:clone():cuda()
   return dl_dc8,dl_dconv8,dl_dloc8,dl_dh8
 end
@@ -128,7 +128,7 @@ function layer:updateGradInput(input, gradOutput)
   dl_dop2,dl_dop4,dl_dop8=unpack(self.concat_norm:backward(self.output_lstm,gradOutput))
   --computing gradients for lstm
 
-  dl_dc8,dl_dconv8,dl_dloc8,dl_dh8=self:initialize_gradients() ---initializing grad_loss w.r.t. output of last time step 
+  dl_dc8,dl_dconv8,dl_dloc8,dl_dh8=self:initialize_gradients(input[1]:size(1)) ---initializing grad_loss w.r.t. output of last time step 
   self.gradOutput_lstm={[self.seq_length]={dl_dloc8,dl_dc8,dl_dh8,dl_dconv8,dl_dop8}}
   for t=self.seq_length,1,-1 do
     if (t-1==2) then

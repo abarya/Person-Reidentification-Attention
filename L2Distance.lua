@@ -14,18 +14,17 @@ function L2Distance:__init()
 end
 
 function L2Distance:updateOutput(input)
-	local N = input[1]:size(1)
+	local N = input[1]:size(2)
 	self.inputDifference = torch.csub(input[1], input[2])
 	local squaredDifference = torch.pow(self.inputDifference, 2)
-	self.output = torch.zeros(1):typeAs(input[1])
-	self.output[1] = torch.sum(squaredDifference) / N
+	self.output = torch.sum(squaredDifference, 2) / N
 	return self.output
 end
 
 function L2Distance:updateGradInput(input, gradOutput)
-	local N = input[1]:size(1)
+	local N = input[1]:size(2)
 	self.gradInput = {}
-	self.gradInput[1] = 2 * self.inputDifference * gradOutput[1]/N
-	self.gradInput[2] = -2 * self.inputDifference * gradOutput[1]/N
+	self.gradInput[1] = 2 * self.inputDifference:cmul(gradOutput:repeatTensor(1, N))/N
+	self.gradInput[2] = -2 * self.inputDifference:cmul(gradOutput:repeatTensor(1, N))/N
 	return self.gradInput
 end

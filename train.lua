@@ -7,6 +7,7 @@ require 'paths'
 require 'loadcaffe'
 require 'cunn'
 require 'image'
+require 'cudnn'
 local c = require 'trepl.colorize'
 opt = lapp[[
     --save               (default "logs")
@@ -63,17 +64,18 @@ end
 pretrained_model = 'alexnet'
 img_size = 227
 if(pretrained_model == 'alexnet') then
-	net = loadcaffe.load('deploy.prototxt', 'bvlc_alexnet.caffemodel', 'cudnn')
+  net=torch.load('saved_model/finetuned_alexnet.t7'):cuda()
+	-- net = loadcaffe.load('deploy.prototxt', 'bvlc_alexnet.caffemodel', 'cudnn')
 	--reinitialize the weights for fc layers and change the last fc layer
-	fc1=net:get(17)
-	--print(fc1.weight[1])
-	fc1:reset()
-	fc2=net:get(20)
-	fc2:reset()
-	net:remove(23)
-	net:insert(nn.Linear(4096,871):cuda(),23)
-	net:remove(24)
-	print(net)
+	-- fc1=net:get(17)
+	-- --print(fc1.weight[1])
+	-- fc1:reset()
+	-- fc2=net:get(20)
+	-- fc2:reset()
+	-- net:remove(23)
+	-- net:insert(nn.Linear(4096,871):cuda(),23)
+	-- net:remove(24)
+	-- print(net)
 	parameters,gradParameters = net:getParameters()
 	mean_image=image.load("mean_image.png"):cuda() * 255
   temp=mean_image[3]:clone()
@@ -156,7 +158,7 @@ function train()
   train_acc = confusion.totalValid * 100
   confusion:zero()
   print(c.blue'==>' ..' saving model')
-  torch.save('saved_model/finetuned_'.. pretrained_model.. '.net',net)
+  torch.save('saved_model/finetuned_'.. pretrained_model.. '.caffemodel',net)
 end
 
 for i=1,40 do

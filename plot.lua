@@ -7,7 +7,7 @@ function convert(csv)
     return unpack(list)
 end
 
-local file = io.open("logs/train1500535308.7603.log")
+local file = io.open("logs/train1500551633.2307.log")
 i=0
 x=torch.Tensor()
 if file then
