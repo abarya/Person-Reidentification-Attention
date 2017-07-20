@@ -87,7 +87,10 @@ function loadAllImagesFromFolders(fileNames, filePaths)
     t:synchronize()
     return loadedfiles
     --]]
-
+  local mean_image=image.load("mean_image.png") * 255
+  temp=mean_image[3]:clone()
+  mean_image[3]=mean_image[1]
+  mean_image[1]=temp
   loadedfiles = {}; 
     for i, foldername in ipairs(fileNames) do
         print(foldername .. ' --> ' .. filePaths[i])
@@ -97,8 +100,11 @@ function loadAllImagesFromFolders(fileNames, filePaths)
         imgTable = {};
         for j, imgname in ipairs(allImgPaths) do 
            --print(imgname)
-           img = (image.load(imgname)) -- '1' --
-           imgTable[imgname] = img; 
+           img = (image.load(imgname))*255 -- '1' --
+           temp=img[3]:clone()
+           img[3]=img[1]
+           img[1]=temp 
+           imgTable[imgname] = img - mean_image; 
         end
         logger.trace('\tNumber of images : '.. #allImgPaths,'image num='..i)
         loadedfiles[foldername] = imgTable;

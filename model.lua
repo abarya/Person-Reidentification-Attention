@@ -155,4 +155,5 @@ m1=nn.gModule({model_atten['img_1conv1']},--,model_atten['img_2conv1']},--,model
  --model_atten['img_2mlp2_hid'],model_atten['img_2mlp2_cell'],model_atten['img_2loc_map'],model_atten['img_2pool5']})
  --model_atten['img_3mlp2_hid'],model_atten['img_3mlp2_cell'],model_atten['img_3loc_map'],model_atten['img_3pool5']})
 seq=nn.Sequencer(m1)
+torch.save('saved_model/attention_model.t7',seq)
 return seq

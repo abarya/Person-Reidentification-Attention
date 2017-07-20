@@ -9,16 +9,56 @@ require 'utilities.lua'
 require 'opts.lua'
 require 'xlua'
 --torch.setdefaulttensortype('torch.CudaTensor')
-optimState = {
-  learningRate = 0.4,
-  weightDecay = 0.3,
-  momentum =0.2,
-  learningRateDecay = 0.1,
-}
+
 model=model:cuda()
+local pre_trained_model=torch.load('saved_model/finetuned_alexnet.t7'):cuda()--way to load model
+pre_trained_model:remove(23)
+pre_trained_model:remove(22)
+pre_trained_model:remove(21)
+pre_trained_model:remove(20)
+pre_trained_model:remove(19)
+pre_trained_model:remove(18)
+pre_trained_model:remove(17)
+pre_trained_model:remove(16)
+p1,g1=pre_trained_model:getParameters()
+p2,g2=model:getParameters()
+p2[{{1,p1:size(1)}}]=p1:clone()
+
+lrs = torch.zeros(p2:size(1)):fill(1)
+lrs[{{1,p1:size(1)}}] = .01
+optimState = {
+  learningRates = lrs,
+  learningRate = 0.001,
+  weightDecay = 0.0005,
+  momentum =0.9,
+  learningRateDecay = 0.0001,
+}
+
+
+pre_trained_model=nil--free memory
+p1=nil--free
+g1=nil--free
 -- input={torch.randn(1,3,227,227):cuda(),torch.randn(1,3,227,227):cuda(),torch.randn(1,3,227,227):cuda()}
 -- -- out=model:forward(input)
 -- target={torch.CudaTensor({1}),torch.CudaTensor({200}),torch.CudaTensor({451})}
+
+-- local loss,dl_do=crit(out,target)  
+
+-- print(model:backward(input,dl_do))
+
+--get data before training
+fileNames, filePaths = getAllFileNamesInDir(opt.datapath);
+
+trainfiles = loadAllImagesFromFolders(fileNames, filePaths)
+
+trainData = {
+  data = trainfiles,
+  size = function() return table.map_length(trainfiles) end
+}
+logger_file = optim.Logger('logs/train'..sys.clock()..'.log')
+
+confusion = optim.ConfusionMatrix(871)
+
 function crit(out,target)
   local cross_entropy = nn.CrossEntropyCriterion()
   pc = nn.ParallelCriterion():add(cross_entropy):add(cross_entropy):add(cross_entropy):cuda()
@@ -38,24 +78,15 @@ function crit(out,target)
   dl_do3,dl_do22=unpack(l2dist2:backward({out[3][1],out[2][1]},torch.mul(df_do,-1)))
   dl_do2=torch.add(dl_do21,dl_do22)
   local l_total=l_iden+l_trip
+  --update confusion matrix
+  confusion:batchAdd(out[1][2], target[1])
+  confusion:batchAdd(out[2][2], target[2])
+  confusion:batchAdd(out[3][2], target[3])
+  confusion:updateValids()
   return l_total,{{dl_do1,dli_do1},{dl_do2,dli_do2},{dl_do3,dli_do3}} 
 end  
 
--- local loss,dl_do=crit(out,target)  
-
--- print(model:backward(input,dl_do))
-
---get data before training
-fileNames, filePaths = getAllFileNamesInDir(opt.datapath);
-
-trainfiles = loadAllImagesFromFolders(fileNames, filePaths)
-
-trainData = {
-  data = trainfiles,
-  size = function() return table.map_length(trainfiles) end
-}
-
-function training()
+function training(epoch)
 
   --epoch tracker
   epoch =epoch or 1
@@ -121,7 +152,7 @@ function training()
 
   -- if the totalSamples count is not divisble by opt.batchSize, then add +1
   if(totalSamples % opt.batchsize ~= 0) then
-      totalBatches = math.floor(totalBatches+1)
+      totalBatches = math.floor(totalBatches)
   end
       
   logger.debug('total pairs of training samples : ' .. totalSamples .. ' (total : ' .. totalFiles .. 'total batches: ' .. totalBatches)
@@ -144,7 +175,7 @@ function training()
     end
 
     local currentBatchSize = batchEnd - batchStart + 1;
-
+    local error=0
     -- create closure to evaluate f(X) and df/dX
     local feval = function(x)
         
@@ -166,6 +197,7 @@ function training()
         local loss,dl_do=crit(output,target) 
 
         f = f + loss
+        error=f
 
         model:backward(input,dl_do)
         
@@ -188,11 +220,25 @@ function training()
     end
     optim.sgd(feval, parameters, optimState)
 
+    --train accuracy
+    train_acc = confusion.totalValid * 100
+
+    if (batchIndex % 20 == 0) then
+      logger_file:add{['training error'] = error}
+      logger.trace('error = '..error..', epoch = '..epoch..' , iterations = '..batchIndex)
+      logger.trace('train accuracy = '..train_acc)
+    end  
     if(batchIndex % 500 == 0) then
       --print confusion matrix
       logger.trace('batches done',batchIndex)   
     end  
   end    
 end
+for i=1,25 do
+  training(i)
+end  
 
-training()
+logger_file:style{['training error'] = '-'}
+logger_file:plot()
+
+
