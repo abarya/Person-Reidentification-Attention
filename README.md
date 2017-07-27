@@ -1,6 +1,6 @@
 # Person-Reidentification
 Person Re-identification is the task of matching images of a person across multiple camera views
-
+This is the implementation of the paper [End-to-End Comparative Attentional Networks for person reid](http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7918589) in torch.
 1.[A very nice tutorial for generative vs discriminative modelling](https://youtu.be/OWJ8xVGRyFA).
 
 2.[Some Papers on deep learning](https://docs.google.com/spreadsheets/d/1-aXevK_YlhQo0qhQxabrOqgD4LHse7dsClfdWR2g5VU/edit#gid=0).
